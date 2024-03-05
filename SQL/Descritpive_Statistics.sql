@@ -49,7 +49,7 @@ ORDER BY
     TO_DATE(TO_CHAR(TO_DATE(month_name, 'Month'), 'MM'), 'MM');
     
 --detailed query for summation for quantity and revenue_per_unit
-CREATE OR REPLACE VIEW detailed_summation AS
+CREATE OR REPLACE VIEW yearly_summation_report AS
 SELECT 
     date_year,
     SUM(quantity) OVER (PARTITION BY date_year) AS yearly_total_quantity,
@@ -72,6 +72,40 @@ SELECT
 FROM retail_features
 ORDER BY date_year DESC, date_quarter, date_month, date_day;
 
+
+CREATE OR REPLACE VIEW customers_report AS
+SELECT 
+    customer_id,
+    SUM(quantity) OVER (PARTITION BY customer_id) AS quantity_per_cust,
+    SUM(revenue_per_unit) OVER (PARTITION BY customer_id) AS revenue_per_cust,
+    date_year,
+    SUM(quantity) OVER (PARTITION BY customer_id, date_year) AS year_quantity_per_cust,
+    SUM(revenue_per_unit) OVER (PARTITION BY customer_id, date_year) AS year_revenue_per_cust,
+    ROUND(AVG(revenue_per_unit) OVER (PARTITION BY customer_id, date_year), 2) AS avg_year_revenue_per_cust,
+    date_quarter,
+    SUM(quantity) OVER (PARTITION BY customer_id, date_quarter) AS quantity_per_cust_quart,
+    SUM(revenue_per_unit) OVER (PARTITION BY customer_id, date_quarter) AS revenue_per_cust_quart,
+    ROUND(AVG(revenue_per_unit) OVER (PARTITION BY customer_id, date_quarter), 2) AS avg_quart_revenue_per_cust,
+    date_month,
+    SUM(quantity) OVER (PARTITION BY customer_id, date_month) AS quantity_per_cust_month,
+    SUM(revenue_per_unit) OVER (PARTITION BY customer_id, date_month) AS revenue_per_cust_month,
+    ROUND(AVG(revenue_per_unit) OVER (PARTITION BY customer_id, date_month), 2) AS avg_month_revenue_per_cust,
+    date_day,
+    SUM(quantity) OVER (PARTITION BY customer_id, date_year, date_month, date_day) AS quantity_per_cust_day,
+    SUM(revenue_per_unit) OVER (PARTITION BY customer_id, date_year, date_month, date_day) AS revenue_per_cust_day,
+    ROUND(AVG(revenue_per_unit) OVER (PARTITION BY customer_id, date_year, date_month, date_day), 2) AS avg_day_revenue_per_cust,
+    day_of_week,
+    SUM(quantity) OVER (PARTITION BY customer_id, date_year, date_month, day_of_week) AS quantity_per_cust_day_of_week,
+    SUM(revenue_per_unit) OVER (PARTITION BY customer_id, date_year, date_month, day_of_week) AS revenue_per_cust_day_of_week,
+    ROUND(AVG(revenue_per_unit) OVER (PARTITION BY customer_id, date_year, date_month, day_of_week), 2) AS avg_dayofweek_revenue_per_cust,
+    time_period,
+    SUM(quantity) OVER (PARTITION BY customer_id, date_year, date_month, day_of_week, time_period) AS quantity_per_cust_time_period,
+    SUM(revenue_per_unit) OVER (PARTITION BY customer_id, date_year, date_month, day_of_week, time_period) AS revenue_per_cust_time_period,
+    ROUND(AVG(revenue_per_unit) OVER (PARTITION BY customer_id, date_year, date_month, day_of_week, time_period), 2) AS avgtimeperiod_revenue_per_cust
+FROM retail_features
+ORDER BY customer_id, date_quarter, date_month, date_day;
+
+
 --Yearly-Monthly Report
 CREATE OR REPLACE VIEW yearly_monthly_report AS
 SELECT DISTINCT
@@ -83,4 +117,50 @@ SELECT DISTINCT
     SUM(revenue_per_unit) OVER (PARTITION BY date_year,month_name) as total_sales,
     ROUND(AVG(quantity) OVER (PARTITION BY date_year,month_name), 2) as avg_sales
 FROM retail_features;
+
+--there is a problem here------>>>>>
+WITH product_quantity AS(
+SELECT 
+        stock_code,
+        date_year,
+        SUM(quantity) OVER (PARTITION BY stock_code, date_year) AS yearly_quantity,
+        date_quarter,
+        SUM(quantity) OVER (PARTITION BY stock_code, date_year, date_quarter) AS quarter_quantity,
+        date_month,
+       SUM(quantity) OVER (PARTITION BY stock_code, date_year, date_month) AS month_quantity
+FROM retail_features
+)
+SELECT 
+        date_year,
+        stock_code,
+        yearly_quantity,
+        DENSE_RANK() OVER(PARTITION BY date_year ORDER BY yearly_quantity) AS rank_year,
+        date_quarter,
+        quarter_quantity,
+        DENSE_RANK() OVER(PARTITION BY date_year, date_quarter ORDER BY quarter_quantity) AS rank_quarter,
+        date_month,
+        quarter_quantity,
+        DENSE_RANK() OVER(PARTITION BY date_year, date_month ORDER BY month_quantity) AS rank_month
+FROM product_quantity;
+
+--Customer retention rate over time:
+SELECT 
+        DISTINCT
+        date_year, 
+       COUNT(DISTINCT customer_id) OVER (PARTITION BY date_year) AS total_customers,
+       COUNT(DISTINCT customer_id) OVER (PARTITION BY date_year, date_month) AS retained_customers,
+       ROUND((COUNT(DISTINCT customer_id) OVER (PARTITION BY date_year, date_month) /
+        COUNT(DISTINCT customer_id) OVER (PARTITION BY date_year)), 2) AS retention_rate
+FROM retail_features;
+
+with purchasing as(
+    select customer_id,
+    COUNT(invoice_code) OVER (PARTITION BY customer_id) as purchases
+    from retail_features
+)
+SELECT
+    distinct
+    customer_id,
+       AVG(purchases) OVER(PARTITION BY customer_id) AS avg_purchase_frequency
+FROM purchasing;
 
