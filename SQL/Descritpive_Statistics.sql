@@ -13,16 +13,13 @@ SELECT
     AVG(quantity) OVER () AS avg_quantity,
     MIN(quantity) OVER () AS min_quantity,
     MAX(quantity) OVER () AS max_quantity,
-    AVG(unit_price) OVER () AS avg_unit_price,
-    MIN(unit_price) OVER () AS min_unit_price,
-    MAX(unit_price) OVER () AS max_unit_price,
     AVG(revenue_per_unit) OVER () AS avg_revenue_per_unit,
     MIN(revenue_per_unit) OVER () AS min_revenue_per_unit,
     MAX(revenue_per_unit) OVER () AS max_revenue_per_unit
 FROM retail_features;
 
 
---Get Gross Sales, and Quantity Sold
+--Get Gross Sales, and Quantity Sold for each year
 SELECT *
 FROM (
     SELECT revenue_per_unit, quantity, date_year
@@ -40,14 +37,11 @@ SELECT
     month_name, 
     SUM(quantity) AS total_quantity, 
     SUM(revenue_per_unit) AS total_revenue
-FROM 
-    retail_features
-GROUP BY 
-    date_year, month_name
+FROM retail_features
+GROUP BY date_year, month_name
 ORDER BY 
     date_year,
     TO_DATE(TO_CHAR(TO_DATE(month_name, 'Month'), 'MM'), 'MM');
-    
 --detailed query for summation for quantity and revenue_per_unit
 CREATE OR REPLACE VIEW yearly_summation_report AS
 SELECT 
@@ -118,7 +112,7 @@ SELECT DISTINCT
     ROUND(AVG(quantity) OVER (PARTITION BY date_year,month_name), 2) as avg_sales
 FROM retail_features;
 
---there is a problem here------>>>>>
+--top selling products
 WITH product_quantity AS(
 SELECT 
         stock_code,
@@ -153,6 +147,7 @@ SELECT
         COUNT(DISTINCT customer_id) OVER (PARTITION BY date_year)), 2) AS retention_rate
 FROM retail_features;
 
+--average purchase for customers
 with purchasing as(
     select customer_id,
     COUNT(invoice_code) OVER (PARTITION BY customer_id) as purchases
@@ -163,4 +158,3 @@ SELECT
     customer_id,
        AVG(purchases) OVER(PARTITION BY customer_id) AS avg_purchase_frequency
 FROM purchasing;
-

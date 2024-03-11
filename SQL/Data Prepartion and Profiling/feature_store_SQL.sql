@@ -1,3 +1,4 @@
+--create table for the store the extracted features from the transformed dataset
 CREATE TABLE retail_features(
     invoice_code VARCHAR2(50 BYTE),
     invoice_date DATE,

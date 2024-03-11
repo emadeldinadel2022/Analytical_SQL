@@ -100,5 +100,21 @@ SELECT
         map_customer_segment(r_score, fm_score) AS customer_segment
 FROM ranking;
 
-SELECT * FROM customer_segmentation_view;
-    
+--total revenue per each segment
+SELECT 
+    csvt.customer_segment,
+    SUM(revenue_per_unit) AS total_sales
+FROM customer_segmentation_view csvt
+JOIN retail_features rf
+on csvt.customer_id = rf.customer_id
+GROUP BY csvt.customer_segment
+ORDER BY total_sales DESC;
+
+--count for each customer segment and it's percentage    
+SELECT
+  DISTINCT
+  customer_segment,
+  COUNT(*) OVER(PARTITION BY customer_segment) AS segment_count,
+  ROUND(COUNT(*) OVER(PARTITION BY customer_segment) / COUNT(*) OVER(), 3) * 100 AS segment_percentage
+FROM customer_segmentation_view
+ORDER BY segment_percentage DESC;
